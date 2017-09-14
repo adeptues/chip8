@@ -6,3 +6,12 @@ links
 - http://mattmik.com/files/chip8/mastering/chip8.html
 - https://github.com/AfBu/haxe-CHIP-8-emulator/wiki/(Super)CHIP-8-Secrets
 
+
+## TODO
+
+Do graphics first to get somthing visible working
+
+- setup the graphics
+- set up the input
+- finish rest of opcodes
+- buzzers/ sound system

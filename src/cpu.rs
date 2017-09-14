@@ -1,6 +1,6 @@
 
-    use std::fs::File;
 
+use std::fs::File;
 use std::io::Read;
 pub struct Chip8{
     memory:[u8;4096],
@@ -20,7 +20,7 @@ pub struct Chip8{
 impl Chip8{
  
     pub fn new_with_game(game:String) -> Chip8{
-
+        //TODO this should be a struct level const
         let fontset  =
 [ 
     0xF0, 0x90, 0x90, 0x90, 0xF0, //0
@@ -58,7 +58,7 @@ impl Chip8{
             panic!("ROM was bigger than memory");
         }
         for i in 0..size{
-            let byte = buf[0];
+            let byte = buf[i];
             memory[512+i] = byte;
         }
         //load the font
@@ -84,9 +84,26 @@ impl Chip8{
     //When using the value of the opcode to to access memory it must be returned
     // as a usize variable which represents what ever the systems memeory
     // address sizes are for rust this should not affect the program behaviour
-    fn get_opcode(&self) -> usize {
+    fn get_opcode(&self,letter:String) -> usize {
+        //dxyn
+        if letter == "x" {
+            return ((self.opcode & 0x0F00 ) >> 8) as usize;
+        }
+        if letter == "y"{
+            return ((self.opcode & 0x00F0) >> 4) as usize;
+        }
+        if letter == "n"{
+            return (self.opcode & 0x000F) as usize;
+        }
+        if letter == "nn" {
+            return (self.opcode & 0x00FF) as usize;
+        }
+        if letter == "nnn"{
+            
+        }
+        panic!("Could not extract value for letter {} from opcode {:x}",letter,self.opcode);
         //gets the x value of the opcode i think
-        return ((self.opcode & 0x0F00 ) >> 8) as usize;
+        //in 6xnn this would produce the value of x
     }
     pub fn is_draw_flag(&self) -> bool{
         return false;
@@ -101,7 +118,9 @@ impl Chip8{
         match self.opcode & 0xF000 {
             0x0000 => {//special case 
                 match self.opcode & 0x000F{
-                    0x0000 => println!("clear screen"),//TODO 0x00E0 clears the screen
+                    0x0000 => {
+                        println!("clear screen");
+                    },//TODO 0x00E0 clears the screen
                     0x000E => println!("return from subroutine"),//TODO 0x00EE
                     0x0033 => { // Stores the Binary-coded decimal representation of VX at the addresses I, I plus 1, and I plus 2
                         self.memory[self.i]     = self.v[self.get_opcode()] / 100;
@@ -121,10 +140,21 @@ impl Chip8{
             }
             0x2000 =>{//0x2NNN calls subroutine adjusts the call stack
                 //put the current program counter onto the stack
+                // println!("opcode {:x}",self.opcode);
+                // println!("sp: {}",self.sp);
+                // println!("pc: {:x}",self.pc);
                 self.stack[self.sp as usize] = self.pc as u16;
                 self.sp +=1;
                 //set the program counter to be the new subroutine start
                 self.pc = (self.opcode & 0x0FFF) as usize;
+            }
+            //6xnn store NN in register Vx
+            0x6000 => {
+                let x = self.get_opcode();
+                //cast needed because opcode is two bytes long at u16
+                let nn = (self.opcode & 0x00FF) as u8;
+                self.v[x] = nn;
+                self.pc +=2;
             }
             0x8000 => {// All the 0x8 opcodes
                 match self.opcode & 0x000F{
@@ -141,6 +171,32 @@ impl Chip8{
                     _ => panic!("could not match opcode to any of the 0x8 instructions {:x}",self.opcode)
                 }
             }
+            0xD000 => {//DXYN opcode draw sprite at location not sure if 0004
+                //conflicts with others
+                let  x = self.v[self.get_opcode()];
+                let y = self.v[(opcode & 0x00F0) >> 4];
+                let height = opcode & 0x000F;
+                let pixel;
+                
+                V[0xF] = 0;
+                for (int yline = 0; yline < height; yline++)
+                {
+                    pixel = memory[I + yline];
+                    for(int xline = 0; xline < 8; xline++)
+                    {
+                        if((pixel & (0x80 >> xline)) != 0)
+                        {
+                            if(gfx[(x + xline + ((y + yline) * 64))] == 1)
+                                V[0xF] = 1;                                 
+                            gfx[x + xline + ((y + yline) * 64)] ^= 1;
+                        }
+                    }
+                }
+                
+                drawFlag = true;
+                pc += 2;
+                
+            }
 
             _ => panic!("could not match {:x} opcode ",self.opcode)
         }
@@ -148,5 +204,54 @@ impl Chip8{
 
         //update timers
         //TODO
+    }
+}
+
+
+//TODO find way to move these to seperate file
+#[cfg(test)]
+mod tests{
+
+    use super::*;
+    //adds y to x
+    #[test]
+    fn test_8xy4_opcode(){
+        let mut chip = Chip8::new();
+        chip.memory[512] = 0x82;
+        chip.memory[513] = 0x34;
+        chip.v[2] = 3;
+        chip.v[3] = 5;
+        chip.emulate_cycle();
+        assert_eq!(chip.v[2],8);
+    }
+    #[test]
+    fn test_annn_opcode(){
+        let mut chip = Chip8::new();
+        chip.memory[512] = 0xA2;
+        chip.memory[513] = 0xF0;
+        chip.emulate_cycle();
+        assert_eq!(chip.i,0x02F0);
+    }
+    // test the cl subroutine opcode
+    #[test]
+    fn test_2nnn_opcode(){
+        let mut chip = Chip8::new();
+        chip.memory[512] = 0x20;
+        chip.memory[513] = 0xF0;
+        chip.emulate_cycle();
+        //check stack pointer incremented
+        assert_eq!(chip.sp,1);
+        assert_eq!(chip.pc,0x0F0);
+        assert_eq!(chip.stack[0],0x200);
+    }
+
+    //test store number nn in x
+    #[test]
+    fn test_6xnn(){
+        let mut chip = Chip8::new();
+        chip.memory[512] = 0x6b;
+        chip.memory[513] = 0x20;
+        chip.emulate_cycle();
+        assert_eq!(chip.v[0xb],0x20);
     }
 }

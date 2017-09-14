@@ -1,6 +1,5 @@
 mod cpu;
-#[cfg(test)]
-mod test;
+
 use cpu::Chip8;
 
 fn main() {
@@ -13,20 +12,30 @@ fn main() {
 
     loop{
         chip.emulate_cycle();
-        if(chip.is_draw_flag()){
+        if chip.is_draw_flag() {
+            draw_graphics();
             //TODO draw graphics
+            //this should just render the cpu drawbufer
         }
-
         //TODO set key press state based on user input
+        //need to map inputs onto some kind of hex based key pad used by the
+        // original chip 8 all though the input is likley to be tied to the
+        // graphics context
     }
     //emulation loop
 }
 
 
+//TODO may have to mvoe this out to its own module / struct if it gets too
+// unweildy as both keyboard input and graphics drawing will be done here
+fn draw_graphics(){
+    println!("Draw Graphics ! yay!")
+}
 
-
-// #[cfg(test)]
-// mod tests{
-
-
-// }
+#[cfg(test)]
+mod tests{
+    #[test]
+    fn it_works(){
+        
+    }
+}
