@@ -98,7 +98,7 @@ impl Chip8{
             Bit::Y => ((self.opcode & 0x00F0) >> 4) as usize,
             Bit::N => (self.opcode & 0x000F) as usize,
             Bit::NN => (self.opcode & 0x00FF) as usize,
-            Bit::NNN => panic!("Could not extract value for letter")
+            Bit::NNN => (self.opcode & 0x0FFF) as usize
         }
         
         //dxyn
@@ -138,7 +138,10 @@ impl Chip8{
                     0x0000 => {
                         println!("clear screen");
                     },//TODO 0x00E0 clears the screen
-                    0x000E => println!("return from subroutine"),//TODO 0x00EE
+                    0x000E => {// return from subroutine
+                        self.pc = self.stack[self.sp as usize] as usize;
+                        self.sp -= 1;
+                    }
                     0x0033 => { // Stores the Binary-coded decimal representation of VX at the addresses I, I plus 1, and I plus 2
                         self.memory[self.i]     = self.v[self.get_opcode(Bit::X)] / 100;
                         self.memory[self.i + 1] = (self.v[self.get_opcode(Bit::X)] / 10) % 10;
@@ -154,7 +157,12 @@ impl Chip8{
                 // we never run on platform less than 16byte
                 self.i = (self.opcode & 0x0FFF) as usize;
                 self.pc +=2;
+            },
+            0x1000 => {
+                self.pc = self.get_opcode(Bit::NNN);
+                //no need to update programe counter as this is a jump command i think
             }
+            
             0x2000 =>{//0x2NNN calls subroutine adjusts the call stack
                 //put the current program counter onto the stack
                 // println!("opcode {:x}",self.opcode);
