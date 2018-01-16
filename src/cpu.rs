@@ -170,6 +170,7 @@ impl Chip8{
                 if self.v[x] == self.get_opcode(Bit::NN) as u8{
                     self.pc +=2;
                 }
+                self.pc+=2;
                 //TODO not sure if this means skip next opcode or just move pc
                 // by 2
             }
@@ -318,6 +319,6 @@ mod tests{
         chip.memory[513] = 0x20;
         chip.v[0xc] = 0x20;
         chip.emulate_cycle();
-        assert_eq!(chip.pc,514);
+        assert_eq!(chip.pc,516);
     }
 }
