@@ -14,7 +14,7 @@ pub struct Chip8{
     // usize for platform inependant memory access
     stack: [u16;16],//the stack
     sp:u16,//stack pointer
-    gfx:[u8;64*32],
+    pub gfx:[u8;64*32],
     drawFlag:bool
 }
 
@@ -283,5 +283,11 @@ mod tests{
         chip.memory[513] = 0x20;
         chip.emulate_cycle();
         assert_eq!(chip.v[0xb],0x20);
+    }
+
+    //Adds the value kk to the value of register Vx, then stores the result in Vx.
+    #[test]
+    fn test_7xkk(){
+
     }
 }

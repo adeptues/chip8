@@ -13,7 +13,7 @@ fn main() {
     loop{
         chip.emulate_cycle();
         if chip.is_draw_flag() {
-            draw_graphics();
+            draw_graphics(chip.gfx);
             //TODO draw graphics
             //this should just render the cpu drawbufer
         }
@@ -29,12 +29,30 @@ fn main() {
 //TODO may have to mvoe this out to its own module / struct if it gets too
 // unweildy as both keyboard input and graphics drawing will be done here
 fn draw_graphics(buf:[u8;2048]){
-
+    //y+x+width
     //draw the 64*32 byte buffer
     println!("Draw Graphics ! yay!");
     let mut count = 0;
-    for pixel in buf{
-        if
+    let width = 64;
+    let height = 32;
+    
+    // for x in 0..width{
+    //     for y in 0..height {
+    //         let pixel = buf[y+x+width];
+            
+    //     }
+    // }
+    for i in 0..2048{
+        let pixel = buf[i];
+        if i % 64 == 0{
+            //then start printing to new lined
+            print!("\n");
+        }
+        if pixel == 1{
+            print!("*");
+        }else{
+            print!(" ");
+        }
     }
         
 }                              
