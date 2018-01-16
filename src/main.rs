@@ -28,9 +28,16 @@ fn main() {
 
 //TODO may have to mvoe this out to its own module / struct if it gets too
 // unweildy as both keyboard input and graphics drawing will be done here
-fn draw_graphics(){
-    println!("Draw Graphics ! yay!")
-}
+fn draw_graphics(buf:[u8;2048]){
+
+    //draw the 64*32 byte buffer
+    println!("Draw Graphics ! yay!");
+    let mut count = 0;
+    for pixel in buf{
+        if
+    }
+        
+}                              
 
 #[cfg(test)]
 mod tests{

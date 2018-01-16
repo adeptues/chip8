@@ -13,8 +13,13 @@ pub struct Chip8{
     //chip 8 this is a short at u16 but seing as this is just an index it can be
     // usize for platform inependant memory access
     stack: [u16;16],//the stack
-    sp:u16//stack pointer
-        
+    sp:u16,//stack pointer
+    gfx:[u8;64*32],
+    drawFlag:bool
+}
+
+enum Bit{
+    X,Y,N,NN,NNN
 }
 
 impl Chip8{
@@ -47,7 +52,8 @@ impl Chip8{
         let sp = 0;
         let opcode = 0;
         let pc = 0x200;
-
+        let gfx = [0;64*32];
+        let drawFlag = false;
         let mut buf:Vec<u8> = Vec::new();
         //load the game
         //TODO this could be more rusty
@@ -66,7 +72,7 @@ impl Chip8{
             memory[i] = fontset[i];
         }
         //TODO load the font set into the first 80 bytes of memory
-        return Chip8{memory,v,stack,i,sp,pc,opcode};
+        return Chip8{memory,v,stack,i,sp,pc,opcode,gfx,drawFlag};
     }
     pub fn new() -> Chip8{
         //initialse the cpu core clear memory
@@ -78,41 +84,52 @@ impl Chip8{
         let sp = 0;
         let opcode = 0;
         let pc = 0x200;
+        let gfx = [0;64*32];
+        let drawFlag = false;
         //TODO load the font set into the first 80 bytes of memory
-        return Chip8{memory,v,stack,i,sp,pc,opcode};
+        return Chip8{memory,v,stack,i,sp,pc,opcode,gfx,drawFlag};
     }
     //When using the value of the opcode to to access memory it must be returned
     // as a usize variable which represents what ever the systems memeory
     // address sizes are for rust this should not affect the program behaviour
-    fn get_opcode(&self,letter:String) -> usize {
+    fn get_opcode(&self,letter:Bit) -> usize {
+        return match letter {
+            Bit::X => ((self.opcode & 0x0F00 ) >> 8) as usize,
+            Bit::Y => ((self.opcode & 0x00F0) >> 4) as usize,
+            Bit::N => (self.opcode & 0x000F) as usize,
+            Bit::NN => (self.opcode & 0x00FF) as usize,
+            Bit::NNN => panic!("Could not extract value for letter")
+        }
+        
         //dxyn
-        if letter == "x" {
-            return ((self.opcode & 0x0F00 ) >> 8) as usize;
-        }
-        if letter == "y"{
-            return ((self.opcode & 0x00F0) >> 4) as usize;
-        }
-        if letter == "n"{
-            return (self.opcode & 0x000F) as usize;
-        }
-        if letter == "nn" {
-            return (self.opcode & 0x00FF) as usize;
-        }
-        if letter == "nnn"{
+        // if letter == "x" {
+        //     return ((self.opcode & 0x0F00 ) >> 8) as usize;
+        // }
+        // if letter == "y"{
+        //     return ((self.opcode & 0x00F0) >> 4) as usize;
+        // }
+        // if letter == "n"{
+        //     return (self.opcode & 0x000F) as usize;
+        // }
+        // if letter == "nn" {
+        //     return (self.opcode & 0x00FF) as usize;
+        // }
+        // if letter == "nnn"{
             
-        }
-        panic!("Could not extract value for letter {} from opcode {:x}",letter,self.opcode);
+        // }
+//        panic!("Could not extract value for letter {} from opcode {:x}",letter,self.opcode);
         //gets the x value of the opcode i think
         //in 6xnn this would produce the value of x
     }
     pub fn is_draw_flag(&self) -> bool{
-        return false;
+        return self.drawFlag;
     }
     pub fn emulate_cycle(&mut self){//might need to change reference on self
         //fetch opcode, this merges two bytes into a u16
         //The original opcode decoding
         //opcode = memory[pc] << 8 | memory[pc + 1];
         //but becuase opcode is a u16 evrything had to be in that format
+
         self.opcode = (self.memory[self.pc] as u16) << 8 | self.memory[self.pc+1] as u16;
         //decode opcode
         match self.opcode & 0xF000 {
@@ -123,9 +140,9 @@ impl Chip8{
                     },//TODO 0x00E0 clears the screen
                     0x000E => println!("return from subroutine"),//TODO 0x00EE
                     0x0033 => { // Stores the Binary-coded decimal representation of VX at the addresses I, I plus 1, and I plus 2
-                        self.memory[self.i]     = self.v[self.get_opcode()] / 100;
-                        self.memory[self.i + 1] = (self.v[self.get_opcode()] / 10) % 10;
-                        self.memory[self.i + 2] = (self.v[self.get_opcode()] % 100) % 10;
+                        self.memory[self.i]     = self.v[self.get_opcode(Bit::X)] / 100;
+                        self.memory[self.i + 1] = (self.v[self.get_opcode(Bit::X)] / 10) % 10;
+                        self.memory[self.i + 2] = (self.v[self.get_opcode(Bit::X)] % 100) % 10;
                         self.pc += 2;
                     }
                     _ => panic!("unknown opcode {:x}",self.opcode)
@@ -150,7 +167,7 @@ impl Chip8{
             }
             //6xnn store NN in register Vx
             0x6000 => {
-                let x = self.get_opcode();
+                let x = self.get_opcode(Bit::X);
                 //cast needed because opcode is two bytes long at u16
                 let nn = (self.opcode & 0x00FF) as u8;
                 self.v[x] = nn;
@@ -173,29 +190,42 @@ impl Chip8{
             }
             0xD000 => {//DXYN opcode draw sprite at location not sure if 0004
                 //conflicts with others
-                let  x = self.v[self.get_opcode()];
-                let y = self.v[(opcode & 0x00F0) >> 4];
-                let height = opcode & 0x000F;
-                let pixel;
-                
-                V[0xF] = 0;
-                for (int yline = 0; yline < height; yline++)
-                {
-                    pixel = memory[I + yline];
-                    for(int xline = 0; xline < 8; xline++)
-                    {
-                        if((pixel & (0x80 >> xline)) != 0)
-                        {
-                            if(gfx[(x + xline + ((y + yline) * 64))] == 1)
-                                V[0xF] = 1;                                 
-                            gfx[x + xline + ((y + yline) * 64)] ^= 1;
+                let  x = self.v[self.get_opcode(Bit::X)];
+                let y = self.v[self.get_opcode(Bit::Y)];
+                let height = self.opcode & 0x000F;
+                //TODO too much casting here maybe problems
+                //TODO TESTME
+                self.v[0xF] = 0;
+
+                for yline in 0..height{
+                    let pixel = self.memory[self.i+ yline as usize];
+                    for xline in 0..8{
+                        if pixel & (0x80 >> xline) != 0{
+                            if self.gfx[((x+xline) as u16+((y as u16 +yline))*64) as usize] == 1{
+                                self.v[0xF] = 1;
+                            }
+                            self.gfx[((x +xline) as u16+((y as u16+yline)*64)) as usize] ^=1;
                         }
                     }
+                    
                 }
+                // for (int yline = 0; yline < height; yline++)
+                // {
+                //     pixel = memory[I + yline];
+                //     for(int xline = 0; xline < 8; xline++)
+                //     {
+                //         if((pixel & (0x80 >> xline)) != 0)
+                //         {
+                //             if(gfx[(x + xline + ((y + yline) * 64))] == 1)
+                //                 V[0xF] = 1;                                 
+                //             gfx[x + xline + ((y + yline) * 64)] ^= 1;
+                //         }
+                //     }
+                // }
                 
-                drawFlag = true;
-                pc += 2;
-                
+                // drawFlag = true;
+                self.drawFlag = true;
+                self.pc += 2;
             }
 
             _ => panic!("could not match {:x} opcode ",self.opcode)
