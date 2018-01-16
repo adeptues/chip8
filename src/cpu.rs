@@ -164,6 +164,14 @@ impl Chip8{
                 self.sp +=1;
                 //set the program counter to be the new subroutine start
                 self.pc = (self.opcode & 0x0FFF) as usize;
+            },
+            0x3000 => {//3xnn Skip the following instruction if the value of register VX equals NN
+                let x = self.get_opcode(Bit::X);
+                if self.v[x] == self.get_opcode(Bit::NN) as u8{
+                    self.pc +=2;
+                }
+                //TODO not sure if this means skip next opcode or just move pc
+                // by 2
             }
             //6xnn store NN in register Vx
             0x6000 => {
@@ -171,6 +179,12 @@ impl Chip8{
                 //cast needed because opcode is two bytes long at u16
                 let nn = (self.opcode & 0x00FF) as u8;
                 self.v[x] = nn;
+                self.pc +=2;
+            },
+            0x7000 => {//7XNN Add the value NN to register VX
+                let nn = self.get_opcode(Bit::NN);
+                let x = self.get_opcode(Bit::X);
+                self.v[x] = self.v[x]+nn as u8;
                 self.pc +=2;
             }
             0x8000 => {// All the 0x8 opcodes
@@ -288,6 +302,22 @@ mod tests{
     //Adds the value kk to the value of register Vx, then stores the result in Vx.
     #[test]
     fn test_7xkk(){
-
+        //7c04
+        let mut chip = Chip8::new();
+        chip.memory[512] = 0x7c;
+        chip.memory[513] = 0x04;
+        chip.v[0xc] = 2;
+        chip.emulate_cycle();
+        assert_eq!(chip.v[0xc],6);
+    }
+    #[test]
+    fn test_3xnn(){
+        //3c20
+        let mut chip = Chip8::new();
+        chip.memory[512] = 0x3c;
+        chip.memory[513] = 0x20;
+        chip.v[0xc] = 0x20;
+        chip.emulate_cycle();
+        assert_eq!(chip.pc,514);
     }
 }
