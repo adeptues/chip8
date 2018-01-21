@@ -4,7 +4,7 @@ use cpu::Chip8;
 
 fn main() {
     //let game = "/home/tom/tom/chip8/games/pong2.c8".to_string();
-    let game = "/home/tom/tom/chip8/games/PONG".to_string();
+    let game = "/home/tom/tom/chip8/games/invaders.c8".to_string();
     //setup graphics
     //setup input
 

@@ -15,7 +15,9 @@ pub struct Chip8{
     stack: [u16;16],//the stack
     sp:u16,//stack pointer
     pub gfx:[u8;64*32],
-    drawFlag:bool
+    drawFlag:bool,
+    delay_timer:u8,
+    sound_timer:u8
 }
 
 enum Bit{
@@ -54,6 +56,8 @@ impl Chip8{
         let pc = 0x200;
         let gfx = [0;64*32];
         let drawFlag = false;
+        let delay_timer = 0;
+        let sound_timer = 0;
         let mut buf:Vec<u8> = Vec::new();
         //load the game
         //TODO this could be more rusty
@@ -72,7 +76,7 @@ impl Chip8{
             memory[i] = fontset[i];
         }
         //TODO load the font set into the first 80 bytes of memory
-        return Chip8{memory,v,stack,i,sp,pc,opcode,gfx,drawFlag};
+        return Chip8{memory,v,stack,i,sp,pc,opcode,gfx,drawFlag,delay_timer,sound_timer};
     }
     pub fn new() -> Chip8{
         //initialse the cpu core clear memory
@@ -86,8 +90,10 @@ impl Chip8{
         let pc = 0x200;
         let gfx = [0;64*32];
         let drawFlag = false;
+        let delay_timer = 0;
+        let sound_timer = 0;
         //TODO load the font set into the first 80 bytes of memory
-        return Chip8{memory,v,stack,i,sp,pc,opcode,gfx,drawFlag};
+        return Chip8{memory,v,stack,i,sp,pc,opcode,gfx,drawFlag,delay_timer,sound_timer};
     }
     //When using the value of the opcode to to access memory it must be returned
     // as a usize variable which represents what ever the systems memeory
@@ -214,8 +220,33 @@ impl Chip8{
             0xF000 => {
                 match self.opcode & 0x00FF {
                     0x0007 => {
-                        panic!("TODO");
+                        self.v[self.get_opcode(Bit::X)] = self.delay_timer;
+                        self.pc +=2;
                     },
+                    0x000A => {//Fx0a
+                        //Wait for a key press, store the value of the key in
+                        // Vx.
+                        panic!("todokey presses");
+                    },
+                    0x0015 => {
+                        //Fx15 - LD DT, Vx
+                        //Set delay timer = Vx.
+                        let vx = self.v[self.get_opcode(Bit::X)];
+                        self.delay_timer = vx;
+                        self.pc +=2;
+                    },
+                    0x0018 =>{//Fx15 set sound timer to vx;
+                        let vx = self.v[self.get_opcode(Bit::X)];
+                        self.sound_timer = vx;
+                        self.pc +=2;
+                    },
+                    0x001e =>{
+                        let vx = self.v[self.get_opcode(Bit::X)];
+                        //Fx1E - ADD I, Vx
+                        //Set I = I + Vx.
+                        self.i = (self.i +vx as usize) ;
+                        self.pc +=2;
+                    }
                     0x0033 => {
                         //Binary coded decimal of and register value
                         //Store the BCD equivalent of
@@ -244,6 +275,10 @@ impl Chip8{
                         self.i = (vx * font_mem_width) as usize;
                         self.pc +=2;
                     },
+                    0x0055 => {
+                        // the invers of 0x0065
+                        panic!("todo 0x55");
+                    }
                     0x0065 =>{
                         //Fill registers V0 to VX inclusive with the values
                         // stored in memory starting at address I
@@ -409,6 +444,7 @@ mod tests{
         assert_eq!(chip.memory[chip.i+4],0xF0);
         //TODO not sure if this actually works
     }
+    
 
     #[test]
     fn test_fx65(){
