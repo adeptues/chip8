@@ -204,6 +204,28 @@ impl Chip8{
             }
             0x8000 => {// All the 0x8 opcodes
                 match self.opcode & 0x000F{
+                    0x0000 => {
+                        //8xy0 Stores the value of register Vy in register Vx.
+                        let vy = self.v[self.get_opcode(Bit::Y)];
+                        self.v[self.get_opcode(Bit::X)] = vy;
+                        self.pc +=2;
+                    },
+                    0x0001 =>{
+                        //8xy1 - OR Vx, Vy
+                        let out = self.v[self.get_opcode(Bit::X)] | self.v[self.get_opcode(Bit::Y)];
+                        self.v[self.get_opcode(Bit::X)] = out;
+                        self.pc +=2;
+                    },
+                    0x0002 => {//bitwise and
+                        let out = self.v[self.get_opcode(Bit::X)] & self.v[self.get_opcode(Bit::Y)];
+                        self.v[self.get_opcode(Bit::X)] = out;
+                        self.pc +=2;
+                    },
+                    0x0003 => {//8xy3 - XOR Vx, Vy
+                        let out = self.v[self.get_opcode(Bit::X)] ^ self.v[self.get_opcode(Bit::Y)];
+                        self.v[self.get_opcode(Bit::X)] = out;
+                        self.pc +=2;
+                    }
                     0x0004 => {//0x8XY4 adds VY to VX sets VF carry to 1 when >255
                         //carry check
                         if self.v[((self.opcode & 0x00F0) as usize) >> 4] > (0xFF - self.v[((self.opcode & 0x0F00) >> 8 )as usize]){
@@ -213,7 +235,11 @@ impl Chip8{
                         }
                         //do the addition
                         self.v[((self.opcode & 0x0F00) >> 8) as usize] += self.v[((self.opcode & 0x00F0) >> 4) as usize];
-                    }
+                        self.pc +=2;
+                    },
+                    // 0x0005=>{
+                        
+                    // }
                     _ => panic!("could not match opcode to any of the 0x8 instructions {:x}",self.opcode)
                 }
             },
