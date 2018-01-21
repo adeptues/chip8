@@ -210,6 +210,56 @@ impl Chip8{
                     }
                     _ => panic!("could not match opcode to any of the 0x8 instructions {:x}",self.opcode)
                 }
+            },
+            0xF000 => {
+                match self.opcode & 0x00FF {
+                    0x0007 => {
+                        panic!("TODO");
+                    },
+                    0x0033 => {
+                        //Binary coded decimal of and register value
+                        //Store the BCD equivalent of
+                        //the value in register VX at addresses I, I+1,
+                        // and I+2
+                        let vx = self.v[self.get_opcode(Bit::X)];
+                        // BCD involves splitting a value up into units 100's
+                        // 10's and 1's
+                        // value in register vx is not in bcd format needs
+                        // splitting from normal number into bcd at the mem addresses
+                        let ones = (vx % 100) % 10;
+                        let tens = (vx / 10) % 10;
+                        let hundreds = vx/100;
+                        self.memory[self.i] = hundreds;
+                        self.memory[self.i+1] = tens;
+                        self.memory[self.i+2] = ones;
+                        self.pc +=2
+                    },
+                    0x0029 => {
+                        //Set I to the memory address of the sprite data
+                        // corresponding to the hexadecimal digit stored in
+                        // register VX
+                        let font_mem_width = 5;
+                        
+                        let vx = self.v[self.get_opcode(Bit::X)];
+                        self.i = (vx * font_mem_width) as usize;
+                        self.pc +=2;
+                    },
+                    0x0065 =>{
+                        //Fill registers V0 to VX inclusive with the values
+                        // stored in memory starting at address I
+                        let mut mem_counter = self.i;
+                        //TODO this might not be inclusive
+                        for i in 0..16{
+                            self.v[i] = self.memory[mem_counter];
+                            mem_counter += 1;
+                        }
+                        //TODO not sure if we needed to increment i in the
+                        // previous loop instead of sperate counter
+                        self.i = self.i+self.get_opcode(Bit::X)+1;
+                        self.pc +=2;
+                    }
+                    _ => panic!("could not match F series opcode {:x}",self.opcode)
+                }
             }
             0xD000 => {//DXYN opcode draw sprite at location not sure if 0004
                 //conflicts with others
@@ -328,5 +378,68 @@ mod tests{
         chip.v[0xc] = 0x20;
         chip.emulate_cycle();
         assert_eq!(chip.pc,516);
+    }
+    #[test]
+    fn test_BCD_fx33(){
+        //fe33
+        let mut chip = Chip8::new();
+        chip.memory[512] = 0xfe;
+        chip.memory[513] = 0x33;
+        chip.v[0xe] = 235;//235
+        chip.emulate_cycle();
+        assert_eq!(chip.memory[chip.i],2);
+        assert_eq!(chip.memory[chip.i+1],3);
+        assert_eq!(chip.memory[chip.i+2],5);
+    }
+    
+    #[test]
+    fn test_fx29(){
+        //                        f129
+        let f:[u8;5] = [0xF0, 0x10, 0xF0, 0x80, 0xF0]; //2
+        let mut chip = Chip8::new_with_game("./games/PONG".to_string());
+        chip.memory[512] = 0xf1;
+        chip.memory[513] = 0x29;
+        chip.v[0x1] = 2;//235
+        chip.emulate_cycle();
+        assert_eq!(chip.i,0xa);
+        assert_eq!(chip.memory[chip.i],0xF0);
+        assert_eq!(chip.memory[chip.i+1],0x10);
+        assert_eq!(chip.memory[chip.i+2],0xF0);
+        assert_eq!(chip.memory[chip.i+3],0x80);
+        assert_eq!(chip.memory[chip.i+4],0xF0);
+        //TODO not sure if this actually works
+    }
+
+    #[test]
+    fn test_fx65(){
+        //f265
+
+        let mut chip = Chip8::new();
+        chip.memory[512] = 0xf2;
+        chip.memory[513] = 0x65;
+        chip.i = 600;
+        chip.memory[600] = 1;
+        chip.memory[601] = 2;
+        chip.memory[602] = 3;
+        chip.memory[603] = 4;
+        chip.memory[604] = 5;
+        chip.memory[605] = 6;
+        chip.memory[606] = 7;
+        chip.memory[607] = 8;
+        chip.memory[608] = 9;
+        chip.memory[609] = 10;
+        chip.memory[610] = 11;
+        chip.memory[611] = 12;
+        chip.memory[612] = 13;
+        chip.memory[613] = 14;
+        chip.memory[614] = 15;
+        chip.memory[615] = 16;
+
+        chip.emulate_cycle();
+
+
+        for i in 0..16{
+            assert_eq!(chip.v[i],(i+1) as u8);
+        }
     }
 }
